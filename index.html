@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MODULAR LEDGER — Core Banking System</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:         #080A0E;
+    --surface:    #0D1117;
+    --card:       #111820;
+    --border:     #1E2A36;
+    --border-lit: #2E4055;
+    --gold:       #C9A84C;
+    --gold-dim:   #7A6030;
+    --amber:      #E8943A;
+    --green:      #3ECFA0;
+    --green-dim:  #1A6B52;
+    --red:        #E85A4A;
+    --red-dim:    #6B2A24;
+    --blue:       #4A9EE8;
+    --text:       #C8D6E3;
+    --muted:      #5A7A95;
+    --mono:       'IBM Plex Mono', monospace;
+    --display:    'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* TOP HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #0F1620 0%, var(--bg) 100%);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .logo-mark {
+    width: 36px;
+    height: 36px;
+    border: 2px solid var(--gold);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    padding: 4px;
+    transform: rotate(45deg);
+    flex-shrink: 0;
+  }
+
+  .logo-mark span {
+    background: var(--gold);
+    display: block;
+    transform: rotate(-45deg) scale(0.9);
+  }
+
+  .logo-mark span:nth-child(2) { background: transparent; border: 1px solid var(--gold-dim); }
+  .logo-mark span:nth-child(3) { background: transparent; border: 1px solid var(--gold-dim); }
+
+  .header-title {
+    font-family: var(--display);
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .header-sub {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .status-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .status-chip .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  .status-chip .dot.warn { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .clock {
+    font-size: 11px;
+    color: var(--gold);
+    letter-spacing: 2px;
+  }
+
+  /* MAIN LAYOUT */
+  .main {
+    display: grid;
+    grid-template-columns: 240px 1fr 280px;
+    grid-template-rows: auto 1fr auto;
+    gap: 1px;
+    background: var(--border);
+    min-height: calc(100vh - 65px);
+  }
+
+  .panel {
+    background: var(--bg);
+    padding: 20px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-label {
+    font-family: var(--display);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+  }
+
+  .panel-count {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* SIDEBAR NAV */
+  .sidebar {
+    grid-row: 1 / 4;
+    padding: 24px 0;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .sidebar-section {
+    margin-bottom: 28px;
+    padding: 0 20px;
+  }
+
+  .sidebar-label {
+    font-size: 8px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 2px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    cursor: pointer;
+    margin-bottom: 2px;
+    transition: all 0.15s;
+    border: 1px solid transparent;
+  }
+
+  .nav-item.active {
+    background: rgba(201, 168, 76, 0.08);
+    border-color: var(--gold-dim);
+    color: var(--gold);
+  }
+
+  .nav-item:hover:not(.active) {
+    background: rgba(255,255,255,0.03);
+    color: var(--text);
+  }
+
+  .nav-icon {
+    width: 14px;
+    text-align: center;
+    font-size: 11px;
+  }
+
+  /* LIQUIDITY METRICS ROW */
+  .metrics-row {
+    grid-column: 2;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .metric-card {
+    background: var(--card);
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .metric-card.green::before { background: var(--green); }
+  .metric-card.gold::before  { background: var(--gold); }
+  .metric-card.amber::before { background: var(--amber); }
+  .metric-card.blue::before  { background: var(--blue); }
+
+  .metric-label {
+    font-size: 8px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .metric-value {
+    font-family: var(--display);
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .metric-value.green { color: var(--green); }
+  .metric-value.gold  { color: var(--gold); }
+  .metric-value.amber { color: var(--amber); }
+  .metric-value.blue  { color: var(--blue); }
+
+  .metric-delta {
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+
+  .delta-up   { color: var(--green); }
+  .delta-down { color: var(--red); }
+
+  .mini-sparkline {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 80px;
+    height: 40px;
+    opacity: 0.3;
+  }
+
+  /* CENTER: LEDGER STREAM */
+  .ledger-panel {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+
+  .ledger-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .filter-chip {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-chip.active {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(201,168,76,0.06);
+  }
+
+  .filter-chip:hover:not(.active) {
+    border-color: var(--border-lit);
+    color: var(--text);
+  }
+
+  .spacer { flex: 1; }
+
+  .tps-display {
+    font-size: 10px;
+    color: var(--amber);
+    letter-spacing: 1px;
+  }
+
+  /* LEDGER TABLE */
+  .ledger-table {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .ledger-table::-webkit-scrollbar { width: 4px; }
+  .ledger-table::-webkit-scrollbar-track { background: var(--bg); }
+  .ledger-table::-webkit-scrollbar-thumb { background: var(--border-lit); }
+
+  .table-head {
+    display: grid;
+    grid-template-columns: 120px 80px 100px 1fr 110px 90px 80px;
+    gap: 0;
+    padding: 10px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .th {
+    font-size: 8px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .table-body {
+    min-height: 400px;
+  }
+
+  .tx-row {
+    display: grid;
+    grid-template-columns: 120px 80px 100px 1fr 110px 90px 80px;
+    gap: 0;
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(30,42,54,0.5);
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    transition: background 0.1s;
+    animation: rowIn 0.3s ease;
+  }
+
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateX(-6px); background: rgba(201,168,76,0.05); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .tx-row:hover { background: rgba(255,255,255,0.02); }
+
+  .tx-id { color: var(--blue); font-size: 9px; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 8px;
+    letter-spacing: 1px;
+    border-radius: 1px;
+    font-weight: 600;
+  }
+
+  .badge.SETTLED  { background: rgba(62,207,160,0.15); color: var(--green); border: 1px solid var(--green-dim); }
+  .badge.PENDING  { background: rgba(232,148,58,0.15); color: var(--amber); border: 1px solid var(--amber); }
+  .badge.DEFERRED { background: rgba(90,122,149,0.15); color: var(--muted); border: 1px solid var(--border); }
+  .badge.FAILED   { background: rgba(232,90,74,0.15);  color: var(--red);   border: 1px solid var(--red-dim); }
+  .badge.QUEUED   { background: rgba(74,158,232,0.15); color: var(--blue);  border: 1px solid var(--blue); }
+
+  .tx-amount { color: var(--text); font-weight: 500; }
+  .tx-bank   { color: var(--muted); font-size: 9px; }
+  .tx-time   { color: var(--muted); font-size: 9px; }
+
+  /* RIGHT SIDEBAR */
+  .right-panel {
+    grid-column: 3;
+    grid-row: 1 / 4;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .rp-section {
+    padding: 18px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .rp-title {
+    font-size: 8px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 14px;
+    font-family: var(--display);
+    font-weight: 700;
+  }
+
+  /* SETTLEMENT MATRIX */
+  .matrix-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 3px;
+  }
+
+  .matrix-cell {
+    aspect-ratio: 1;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: transform 0.1s;
+    position: relative;
+  }
+
+  .matrix-cell:hover { transform: scale(1.1); z-index: 5; }
+
+  .matrix-cell.header-cell {
+    background: transparent;
+    color: var(--muted);
+    font-size: 7px;
+    letter-spacing: 0.5px;
+  }
+
+  /* LIQUIDITY BAR CHART */
+  .liq-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .liq-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .liq-bar-label {
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    width: 36px;
+    flex-shrink: 0;
+    text-align: right;
+  }
+
+  .liq-bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  .liq-bar-fill {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 1s ease;
+  }
+
+  .liq-bar-val {
+    font-size: 8px;
+    color: var(--text);
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ALERT LOG */
+  .alerts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .alerts-list::-webkit-scrollbar { width: 2px; }
+  .alerts-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .alert-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px;
+    background: var(--card);
+    border-left: 2px solid var(--border);
+    font-size: 9px;
+    animation: rowIn 0.3s ease;
+  }
+
+  .alert-item.warn  { border-color: var(--amber); }
+  .alert-item.crit  { border-color: var(--red); }
+  .alert-item.info  { border-color: var(--blue); }
+
+  .alert-icon { font-size: 10px; flex-shrink: 0; margin-top: 0px; }
+  .alert-msg  { color: var(--text); line-height: 1.4; }
+  .alert-time { font-size: 8px; color: var(--muted); margin-top: 2px; }
+
+  /* BOTTOM STATUS BAR */
+  .status-bar {
+    grid-column: 2;
+    grid-row: 3;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 8px 20px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .status-item { display: flex; align-items: center; gap: 6px; }
+  .status-val  { color: var(--text); font-weight: 500; }
+
+  /* CANVAS CHART */
+  .chart-wrap {
+    position: relative;
+    height: 100px;
+    margin-top: 4px;
+  }
+
+  canvas { width: 100% !important; }
+
+  /* QUEUE VISUALIZATION */
+  .queue-viz {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .queue-block {
+    width: 8px;
+    height: 8px;
+    border-radius: 1px;
+    transition: background 0.3s;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo-mark">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <div>
+      <div class="header-title">Modular Ledger</div>
+      <div class="header-sub">Core Banking Infrastructure · Settlement Engine v4.2</div>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-chip"><span class="dot"></span> LIVE FEED</div>
+    <div class="status-chip"><span class="dot warn"></span> 3 ALERTS</div>
+    <div class="status-chip">NODE: <span style="color:var(--text);margin-left:4px">CBK-PRI-01</span></div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Ledger Modules</div>
+      <div class="nav-item active"><span class="nav-icon">▦</span> Real-time Monitor</div>
+      <div class="nav-item"><span class="nav-icon">⇄</span> Inter-bank Settlement</div>
+      <div class="nav-item"><span class="nav-icon">◈</span> Liquidity Pool</div>
+      <div class="nav-item"><span class="nav-icon">≡</span> Batch Processor</div>
+      <div class="nav-item"><span class="nav-icon">⊕</span> RTGS Queue</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Bank Nodes</div>
+      <div class="nav-item"><span style="color:var(--green);font-size:8px">●</span> CBK Central</div>
+      <div class="nav-item"><span style="color:var(--green);font-size:8px">●</span> First Naira Plc</div>
+      <div class="nav-item"><span style="color:var(--green);font-size:8px">●</span> Union Capital</div>
+      <div class="nav-item"><span style="color:var(--amber);font-size:8px">●</span> Meridian FSB</div>
+      <div class="nav-item"><span style="color:var(--green);font-size:8px">●</span> Atlantic Micro</div>
+      <div class="nav-item"><span style="color:var(--red);font-size:8px">●</span> Apex Trust</div>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Protocols</div>
+      <div class="nav-item"><span class="nav-icon">◉</span> SWIFT MT103</div>
+      <div class="nav-item"><span class="nav-icon">◉</span> NIBSS NIPS</div>
+      <div class="nav-item"><span class="nav-icon">◉</span> ISO 20022</div>
+    </div>
+  </aside>
+
+  <!-- TOP METRICS -->
+  <div class="metrics-row" id="metricsRow">
+    <div class="metric-card green">
+      <div class="metric-label">Total Liquidity (₦B)</div>
+      <div class="metric-value green" id="m1">₦2,847.3B</div>
+      <div class="metric-delta delta-up" id="m1d">↑ +0.42% vs prev session</div>
+      <svg class="mini-sparkline" viewBox="0 0 80 40" id="spark1"></svg>
+    </div>
+    <div class="metric-card gold">
+      <div class="metric-label">Settled Today (₦)</div>
+      <div class="metric-value gold" id="m2">₦482.1B</div>
+      <div class="metric-delta delta-up" id="m2d">↑ 14,382 transactions</div>
+      <svg class="mini-sparkline" viewBox="0 0 80 40" id="spark2"></svg>
+    </div>
+    <div class="metric-card amber">
+      <div class="metric-label">Pending Queue</div>
+      <div class="metric-value amber" id="m3">247</div>
+      <div class="metric-delta delta-down" id="m3d">↓ Processing 18.4 tx/s</div>
+      <svg class="mini-sparkline" viewBox="0 0 80 40" id="spark3"></svg>
+    </div>
+    <div class="metric-card blue">
+      <div class="metric-label">Failed / Deferred</div>
+      <div class="metric-value blue" id="m4">12</div>
+      <div class="metric-delta delta-down" id="m4d">↑ 2 new in last 60s</div>
+      <svg class="mini-sparkline" viewBox="0 0 80 40" id="spark4"></svg>
+    </div>
+  </div>
+
+  <!-- LEDGER STREAM -->
+  <div class="ledger-panel">
+    <div class="ledger-toolbar">
+      <div class="filter-chip active">ALL</div>
+      <div class="filter-chip">RTGS</div>
+      <div class="filter-chip">NIPS</div>
+      <div class="filter-chip">SWIFT</div>
+      <div class="filter-chip">FAILED</div>
+      <div class="spacer"></div>
+      <div class="tps-display">⚡ <span id="tpsVal">18.4</span> TPS</div>
+    </div>
+
+    <div class="ledger-table">
+      <div class="table-head">
+        <div class="th">TX REF</div>
+        <div class="th">TYPE</div>
+        <div class="th">STATUS</div>
+        <div class="th">ORIGINATOR → BENEFICIARY</div>
+        <div class="th">AMOUNT</div>
+        <div class="th">PROTOCOL</div>
+        <div class="th">TIME</div>
+      </div>
+      <div class="table-body" id="ledgerBody"></div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-item">BLOCK HEIGHT <span class="status-val" id="blockH">1,482,394</span></div>
+    <div class="status-item">CONSENSUS <span class="status-val" style="color:var(--green)">ACHIEVED</span></div>
+    <div class="status-item">LATENCY <span class="status-val" id="latency">48ms</span></div>
+    <div class="status-item">UPTIME <span class="status-val">99.997%</span></div>
+    <div class="status-item">SESSION <span class="status-val">CBK-2025-02-22</span></div>
+    <div class="spacer"></div>
+    <div class="status-item" style="color:var(--gold)">◈ REAL-TIME LEDGER STREAM ACTIVE</div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel">
+
+    <div class="rp-section">
+      <div class="rp-title">Settlement Matrix</div>
+      <div class="matrix-grid" id="matrixGrid"></div>
+      <div style="font-size:8px;color:var(--muted);margin-top:8px;letter-spacing:1px">
+        HEAT: VOLUME OF INTER-BANK FLOWS
+      </div>
+    </div>
+
+    <div class="rp-section">
+      <div class="rp-title">Liquidity Ratios</div>
+      <div class="liq-bars" id="liqBars"></div>
+    </div>
+
+    <div class="rp-section">
+      <div class="rp-title">Throughput (5min)</div>
+      <div class="chart-wrap">
+        <canvas id="tpsChart" height="100"></canvas>
+      </div>
+    </div>
+
+    <div class="rp-section" style="flex:1;overflow:hidden">
+      <div class="rp-title">Alert Log</div>
+      <div class="alerts-list" id="alertsList"></div>
+    </div>
+
+  </aside>
+
+</div>
+
+<script>
+// ─── CLOCK ───────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toTimeString().slice(0,8) + ' WAT';
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── DATA GENERATORS ──────────────────────────────────────────────────────
+const banks = ['CBK CENTRAL','FIRST NAIRA','UNION CAP','MERIDIAN FSB','ATLANTIC MIC','APEX TRUST'];
+const bankCodes = ['CBK','FNB','UCB','MER','ATL','APX'];
+const statuses = ['SETTLED','SETTLED','SETTLED','PENDING','PENDING','QUEUED','DEFERRED','FAILED'];
+const protocols = ['RTGS','NIPS','SWIFT','RTGS','NIPS'];
+const types = ['CREDIT','DEBIT','INTRA','INTER','RTGS'];
+
+let txCounter = 98420;
+
+function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function randPick(arr){ return arr[randInt(0,arr.length-1)]; }
+function formatAmt(n){ return '₦'+n.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+function genTx() {
+  txCounter++;
+  const from = randInt(0,5), to = (from + randInt(1,5)) % 6;
+  const status = randPick(statuses);
+  const amount = (Math.random()*50000000+100000).toFixed(2);
+  const now = new Date();
+  return {
+    id: `TX${txCounter}`,
+    type: randPick(types),
+    status,
+    from: bankCodes[from],
+    to: bankCodes[to],
+    amount: parseFloat(amount),
+    proto: randPick(protocols),
+    time: now.toTimeString().slice(0,8)
+  };
+}
+
+// ─── LEDGER STREAM ────────────────────────────────────────────────────────
+const body = document.getElementById('ledgerBody');
+const maxRows = 40;
+
+function addTxRow(tx) {
+  const row = document.createElement('div');
+  row.className = 'tx-row';
+  row.innerHTML = `
+    <div class="tx-id">${tx.id}</div>
+    <div style="font-size:9px;color:var(--muted)">${tx.type}</div>
+    <div><span class="badge ${tx.status}">${tx.status}</span></div>
+    <div style="font-size:9px;color:var(--text)">${tx.from} <span style="color:var(--muted)">→</span> ${tx.to}</div>
+    <div class="tx-amount" style="font-size:10px">${formatAmt(tx.amount)}</div>
+    <div class="tx-bank">${tx.proto}</div>
+    <div class="tx-time">${tx.time}</div>
+  `;
+  body.insertBefore(row, body.firstChild);
+  if (body.children.length > maxRows) body.removeChild(body.lastChild);
+}
+
+// Seed initial rows
+for (let i=0;i<20;i++) addTxRow(genTx());
+
+// Live stream
+setInterval(() => {
+  const count = randInt(1,3);
+  for(let i=0;i<count;i++) addTxRow(genTx());
+  updateMetrics();
+}, 900);
+
+// ─── TPS COUNTER ──────────────────────────────────────────────────────────
+const tpsHistory = Array.from({length:60},()=>randInt(10,30));
+let tpsEl = document.getElementById('tpsVal');
+
+// ─── METRICS ──────────────────────────────────────────────────────────────
+let liquidity = 2847.3, settled = 482.1, pending = 247, failed = 12;
+
+function updateMetrics() {
+  liquidity += (Math.random()-0.48)*0.8;
+  settled += Math.random()*0.5;
+  pending = Math.max(0, pending + randInt(-5,8));
+  if(Math.random()<0.05) failed += 1;
+
+  document.getElementById('m1').textContent = '₦'+liquidity.toFixed(1)+'B';
+  document.getElementById('m2').textContent = '₦'+settled.toFixed(1)+'B';
+  document.getElementById('m3').textContent = pending;
+  document.getElementById('m4').textContent = failed;
+
+  const tps = (Math.random()*15+8).toFixed(1);
+  tpsEl.textContent = tps;
+  tpsHistory.shift(); tpsHistory.push(parseFloat(tps));
+  drawTpsChart();
+  document.getElementById('blockH').textContent = (1482394 + txCounter - 98420).toLocaleString();
+  document.getElementById('latency').textContent = randInt(35,120)+'ms';
+}
+
+// ─── TPS CHART (Canvas) ───────────────────────────────────────────────────
+const tpsCanvas = document.getElementById('tpsChart');
+const ctx = tpsCanvas.getContext('2d');
+
+function drawTpsChart() {
+  const W = tpsCanvas.offsetWidth, H = 100;
+  tpsCanvas.width = W; tpsCanvas.height = H;
+  ctx.clearRect(0,0,W,H);
+
+  const max = Math.max(...tpsHistory, 35);
+  const step = W / (tpsHistory.length - 1);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(30,42,54,0.8)';
+  ctx.lineWidth = 1;
+  for(let g=0;g<4;g++) {
+    const y = H - (g/3)*H;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+
+  // Fill
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(201,168,76,0.25)');
+  grad.addColorStop(1,'rgba(201,168,76,0)');
+  ctx.beginPath();
+  ctx.moveTo(0, H - (tpsHistory[0]/max)*H);
+  tpsHistory.forEach((v,i) => ctx.lineTo(i*step, H-(v/max)*H));
+  ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(201,168,76,0.8)';
+  ctx.lineWidth = 1.5;
+  ctx.lineJoin = 'round';
+  tpsHistory.forEach((v,i) => {
+    i===0 ? ctx.moveTo(0, H-(v/max)*H) : ctx.lineTo(i*step, H-(v/max)*H);
+  });
+  ctx.stroke();
+
+  // Current point
+  const lastX = (tpsHistory.length-1)*step;
+  const lastY = H - (tpsHistory[tpsHistory.length-1]/max)*H;
+  ctx.beginPath();
+  ctx.arc(lastX,lastY,3,0,Math.PI*2);
+  ctx.fillStyle = '#C9A84C'; ctx.fill();
+}
+
+window.addEventListener('resize', drawTpsChart);
+setTimeout(drawTpsChart, 100);
+
+// ─── SETTLEMENT MATRIX ────────────────────────────────────────────────────
+const matrixGrid = document.getElementById('matrixGrid');
+const mBanks = ['CBK','FNB','UCB','MER','ATL'];
+const matrixData = [];
+
+function buildMatrix() {
+  matrixGrid.innerHTML = '';
+  // corner
+  const corner = document.createElement('div');
+  corner.className = 'matrix-cell header-cell';
+  matrixGrid.appendChild(corner);
+  // headers
+  mBanks.forEach(b => {
+    const h = document.createElement('div');
+    h.className = 'matrix-cell header-cell';
+    h.textContent = b.slice(0,3);
+    matrixGrid.appendChild(h);
+  });
+  mBanks.forEach((r,ri) => {
+    const rh = document.createElement('div');
+    rh.className = 'matrix-cell header-cell';
+    rh.textContent = r.slice(0,3);
+    matrixGrid.appendChild(rh);
+    mBanks.forEach((c,ci) => {
+      const cell = document.createElement('div');
+      cell.className = 'matrix-cell';
+      if(ri===ci) {
+        cell.style.background='rgba(30,42,54,0.5)';
+        cell.textContent='—';
+      } else {
+        const v = randInt(0,100);
+        matrixData.push({el:cell});
+        const alpha = v/100*0.9+0.05;
+        const hue = v > 70 ? `rgba(62,207,160,${alpha})` :
+                    v > 40 ? `rgba(201,168,76,${alpha})` :
+                              `rgba(232,90,74,${alpha})`;
+        cell.style.background = hue;
+      }
+      matrixGrid.appendChild(cell);
+    });
+  });
+}
+
+buildMatrix();
+setInterval(() => {
+  matrixData.forEach(d => {
+    const v = randInt(0,100);
+    const alpha = v/100*0.9+0.05;
+    d.el.style.background = v > 70 ? `rgba(62,207,160,${alpha})` :
+                             v > 40 ? `rgba(201,168,76,${alpha})` :
+                                       `rgba(232,90,74,${alpha})`;
+  });
+}, 2500);
+
+// ─── LIQUIDITY BARS ───────────────────────────────────────────────────────
+const liqData = [
+  {label:'CBK', val:92, color:'var(--green)'},
+  {label:'FNB', val:78, color:'var(--green)'},
+  {label:'UCB', val:65, color:'var(--gold)'},
+  {label:'MER', val:41, color:'var(--amber)'},
+  {label:'ATL', val:83, color:'var(--green)'},
+  {label:'APX', val:18, color:'var(--red)'},
+];
+
+function buildLiqBars() {
+  const container = document.getElementById('liqBars');
+  container.innerHTML = '';
+  liqData.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'liq-bar-row';
+    row.innerHTML = `
+      <div class="liq-bar-label">${d.label}</div>
+      <div class="liq-bar-track">
+        <div class="liq-bar-fill" style="width:${d.val}%;background:${d.color}"></div>
+      </div>
+      <div class="liq-bar-val" style="color:${d.color}">${d.val}%</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+buildLiqBars();
+
+setInterval(() => {
+  liqData.forEach(d => {
+    d.val = Math.min(100, Math.max(5, d.val + (Math.random()-0.5)*4));
+    d.color = d.val > 70 ? 'var(--green)' : d.val > 40 ? 'var(--gold)' : 'var(--red)';
+  });
+  buildLiqBars();
+}, 2000);
+
+// ─── ALERTS ───────────────────────────────────────────────────────────────
+const alertMsgs = [
+  { type:'warn', msg:'Meridian FSB liquidity below 45% threshold', icon:'⚠' },
+  { type:'crit', msg:'Apex Trust node connectivity degraded', icon:'✕' },
+  { type:'warn', msg:'RTGS queue depth exceeding 200 transactions', icon:'⚠' },
+  { type:'info', msg:'ISO 20022 batch cycle completed (4,210 tx)', icon:'ℹ' },
+  { type:'info', msg:'CBK Central nightly reconciliation started', icon:'ℹ' },
+  { type:'warn', msg:'SWIFT timeout on TX98441 — retry queued', icon:'⚠' },
+  { type:'crit', msg:'Failed settlement: TX98392 — insufficient funds', icon:'✕' },
+  { type:'info', msg:'Union Capital position updated +₦2.3B', icon:'ℹ' },
+];
+
+const alertsList = document.getElementById('alertsList');
+const shownAlerts = alertMsgs.slice(0,4);
+
+function renderAlerts() {
+  alertsList.innerHTML = '';
+  shownAlerts.forEach(a => {
+    const item = document.createElement('div');
+    item.className = `alert-item ${a.type}`;
+    item.innerHTML = `
+      <div class="alert-icon">${a.icon}</div>
+      <div>
+        <div class="alert-msg">${a.msg}</div>
+        <div class="alert-time">${new Date().toTimeString().slice(0,8)}</div>
+      </div>
+    `;
+    alertsList.appendChild(item);
+  });
+}
+
+renderAlerts();
+
+setInterval(() => {
+  if(Math.random() < 0.3) {
+    const newAlert = alertMsgs[randInt(0,alertMsgs.length-1)];
+    shownAlerts.unshift({...newAlert});
+    if(shownAlerts.length > 8) shownAlerts.pop();
+    renderAlerts();
+  }
+}, 4000);
+
+// ─── SPARKLINES ───────────────────────────────────────────────────────────
+function drawSparkline(id, color) {
+  const svg = document.getElementById(id);
+  const vals = Array.from({length:20},()=>randInt(20,80));
+  const W=80, H=40;
+  const step = W/(vals.length-1);
+  const norm = v => H - (v/100)*H;
+  let d = `M0,${norm(vals[0])}`;
+  vals.forEach((v,i) => i>0 && (d+=` L${i*step},${norm(v)}`));
+  svg.innerHTML = `<polyline points="${vals.map((v,i)=>i*step+','+norm(v)).join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`;
+}
+
+drawSparkline('spark1','#3ECFA0');
+drawSparkline('spark2','#C9A84C');
+drawSparkline('spark3','#E8943A');
+drawSparkline('spark4','#4A9EE8');
+setInterval(()=>{
+  drawSparkline('spark1','#3ECFA0');
+  drawSparkline('spark2','#C9A84C');
+  drawSparkline('spark3','#E8943A');
+  drawSparkline('spark4','#4A9EE8');
+},3000);
+
+</script>
+</body>
+</html>
